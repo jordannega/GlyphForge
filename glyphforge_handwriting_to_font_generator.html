@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlyphForge - Handwriting to Font Generator</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External Libraries -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .heading-font {
+      font-family: 'Outfit', sans-serif;
+    }
+    .handwriting-font {
+      font-family: 'Caveat', cursive;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    /* Transparent grid pattern */
+    .bg-checker {
+      background-size: 16px 16px;
+      background-position: 0 0, 8px 0, 8px -8px, 0px 8px;
+      background-image: linear-gradient(45deg, #1e293b 25%, transparent 25%),
+                        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+                        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+    }
+    .canvas-draw-cursor {
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i data-lucide="pen-tool" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <span class="heading-font font-bold text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">GlyphForge</span>
+          <span class="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full ml-2 font-medium">TTF Studio</span>
+        </div>
+      </div>
+
+      <!-- Header Action Quick Links -->
+      <div class="flex items-center space-x-3">
+        <button id="btn-load-demo" class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-lg border border-slate-700/60 transition flex items-center space-x-1.5">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Load Demo Sample</span>
+        </button>
+        <button id="btn-reset-all" class="text-xs font-medium bg-slate-800/60 hover:bg-red-500/20 text-slate-400 hover:text-red-300 px-3 py-2 rounded-lg border border-slate-700/50 hover:border-red-500/30 transition flex items-center space-x-1.5">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Reset All</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Step Progress Indicator -->
+  <nav class="bg-slate-900/50 border-b border-slate-800/80 py-3">
+    <div class="max-w-5xl mx-auto px-4">
+      <div class="grid grid-cols-4 gap-2 text-xs sm:text-sm">
+        
+        <!-- Step 1 -->
+        <button data-step="1" class="step-nav-btn flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2.5 p-2 rounded-lg border transition text-brand-400 border-brand-500/40 bg-brand-500/10">
+          <span class="w-6 h-6 rounded-full bg-brand-500 text-white font-semibold text-xs flex items-center justify-center shrink-0">1</span>
+          <span class="font-medium truncate">Template / Draw</span>
+        </button>
+
+        <!-- Step 2 -->
+        <button data-step="2" class="step-nav-btn flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2.5 p-2 rounded-lg border transition text-slate-400 border-slate-800 bg-slate-900/40 hover:bg-slate-800/50">
+          <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 font-semibold text-xs flex items-center justify-center shrink-0">2</span>
+          <span class="font-medium truncate">Upload Scan</span>
+        </button>
+
+        <!-- Step 3 -->
+        <button data-step="3" class="step-nav-btn flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2.5 p-2 rounded-lg border transition text-slate-400 border-slate-800 bg-slate-900/40 hover:bg-slate-800/50">
+          <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 font-semibold text-xs flex items-center justify-center shrink-0">3</span>
+          <span class="font-medium truncate">Extract & Vectorize</span>
+        </button>
+
+        <!-- Step 4 -->
+        <button data-step="4" class="step-nav-btn flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2.5 p-2 rounded-lg border transition text-slate-400 border-slate-800 bg-slate-900/40 hover:bg-slate-800/50">
+          <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 font-semibold text-xs flex items-center justify-center shrink-0">4</span>
+          <span class="font-medium truncate">Export & Sandbox</span>
+        </button>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main View Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- STEP 1 PANEL -->
+    <section id="step-1-panel" class="step-content space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+          <h1 class="heading-font text-2xl font-bold text-white flex items-center gap-2">
+            Step 1: Get Template or Draw Digitally
+          </h1>
+          <p class="text-slate-400 text-sm mt-1">
+            Download a printable handwriting grid or draw characters directly on screen.
+          </p>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="inline-flex p-1 bg-slate-900 rounded-xl border border-slate-800 shrink-0">
+          <button id="tab-draw-mode" class="px-4 py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white shadow-sm transition flex items-center gap-2">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+            Draw Digitally
+          </button>
+          <button id="tab-template-mode" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center gap-2">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            Printable Sheet
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 1A: Digital Drawing Mode -->
+      <div id="view-draw-digital" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Character Selection Grid Matrix -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <i data-lucide="grid" class="w-4 h-4 text-brand-400"></i>
+              Character Grid Matrix (<span id="drawn-count">0</span>/81 Filled)
+            </h2>
+            <button id="btn-fill-sample-brush" class="text-xs text-brand-400 hover:text-brand-300 font-medium underline">
+              Autofill Cursive Preset
+            </button>
+          </div>
+
+          <div id="char-matrix-grid" class="grid grid-cols-9 gap-1.5 overflow-y-auto max-h-[460px] p-1 bg-slate-950/60 rounded-xl border border-slate-800/80">
+            <!-- Dynamically populated 81 grid character squares -->
+          </div>
+
+          <div class="text-xs text-slate-500 text-center">
+            Click any cell to highlight and draw its stroke on the canvas pad.
+          </div>
+        </div>
+
+        <!-- Right: Interactive Canvas Drawing Studio -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col space-y-4">
+          
+          <!-- Drawing Header -->
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div class="flex items-center space-x-3">
+              <span id="current-char-display" class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-300 heading-font text-2xl font-bold flex items-center justify-center">
+                A
+              </span>
+              <div>
+                <div class="text-sm font-semibold text-white">Drawing Character "<span id="current-char-label">A</span>"</div>
+                <div class="text-xs text-slate-400" id="current-char-unicode">Unicode: U+0041 (Uppercase)</div>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button id="btn-draw-prev" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+              <button id="btn-draw-next" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium text-xs flex items-center space-x-1 shadow transition">
+                <span>Next Letter</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Drawing Pad Toolbar -->
+          <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+            <div class="flex items-center space-x-3">
+              <!-- Pen Tool -->
+              <button id="btn-tool-pen" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white flex items-center space-x-1.5 shadow">
+                <i data-lucide="pen" class="w-3.5 h-3.5"></i>
+                <span>Pen</span>
+              </button>
+              <!-- Eraser Tool -->
+              <button id="btn-tool-eraser" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white flex items-center space-x-1.5 border border-slate-700/60">
+                <i data-lucide="eraser" class="w-3.5 h-3.5"></i>
+                <span>Eraser</span>
+              </button>
+
+              <!-- Stroke Width Slider -->
+              <div class="flex items-center space-x-2 pl-2 border-l border-slate-800">
+                <span class="text-xs text-slate-400">Size</span>
+                <input id="input-pen-size" type="range" min="3" max="24" value="8" class="w-20 accent-brand-500">
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button id="btn-draw-undo" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center space-x-1 border border-slate-700/60">
+                <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+                <span>Undo</span>
+              </button>
+              <button id="btn-draw-clear" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 text-xs flex items-center space-x-1 border border-slate-700/60">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- The Active Canvas -->
+          <div class="relative w-full aspect-square max-w-[360px] mx-auto bg-slate-950 rounded-2xl border-2 border-slate-800 overflow-hidden shadow-inner flex items-center justify-center">
+            
+            <!-- Guideline Overlay (Baseline, Cap height, X-height) -->
+            <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 opacity-40">
+              <div class="border-b border-dashed border-sky-400 text-[10px] text-sky-400 pt-2">Cap Height</div>
+              <div class="border-b border-dashed border-indigo-400 text-[10px] text-indigo-400">X-Height</div>
+              <div class="border-b-2 border-amber-400/80 text-[10px] text-amber-400 font-bold pb-0.5">Baseline</div>
+              <div class="border-b border-dashed border-rose-400 text-[10px] text-rose-400 pb-2">Descender</div>
+            </div>
+
+            <!-- Faint Character Watermark Guide -->
+            <div id="draw-guide-watermark" class="absolute inset-0 flex items-center justify-center text-[180px] font-bold text-slate-800/30 select-none pointer-events-none">
+              A
+            </div>
+
+            <canvas id="canvas-draw-pad" width="300" height="300" class="w-full h-full relative z-10 canvas-draw-cursor touch-none"></canvas>
+          </div>
+
+          <div class="flex justify-between items-center pt-2">
+            <span class="text-xs text-slate-500">Tip: Keep letters centered between Cap Height and Baseline.</span>
+            <button id="btn-draw-done-step" class="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-brand-500/25 transition flex items-center space-x-2">
+              <span>Use Drawn Glyphs</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- VIEW 1B: Printable Template Generator -->
+      <div id="view-template-sheet" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <div>
+            <h3 class="font-semibold text-white text-base">Printable Grid Sheet (9x9 Matrix)</h3>
+            <p class="text-xs text-slate-400">Print or save this standard template sheet, write inside the character boxes with a dark pen, then scan/photo it back in Step 2.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-download-template-png" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-lg shadow transition flex items-center space-x-2">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download Sheet PNG</span>
+            </button>
+            <button id="btn-print-template" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center space-x-2">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Print Sheet</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Template Sheet Preview Container -->
+        <div class="w-full overflow-x-auto bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-center">
+          <canvas id="canvas-printable-template" width="1200" height="1500" class="max-w-full h-auto rounded shadow-xl border border-slate-300 bg-white"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- STEP 2 PANEL -->
+    <section id="step-2-panel" class="step-content hidden space-y-6">
+      <div class="border-b border-slate-800 pb-4">
+        <h1 class="heading-font text-2xl font-bold text-white flex items-center gap-2">
+          Step 2: Upload Scan & Calibrate Grid
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">
+          Upload your scanned template (PDF, PNG, JPG) or align the calibration grid over your handwritten boxes.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Controls & Dropzone -->
+        <div class="lg:col-span-4 space-y-5">
+          
+          <!-- Drop Zone Card -->
+          <div id="dropzone-area" class="border-2 border-dashed border-slate-700 hover:border-brand-500/80 bg-slate-900/60 hover:bg-slate-900 rounded-2xl p-6 text-center transition cursor-pointer flex flex-col items-center justify-center space-y-3 group">
+            <input type="file" id="input-file-upload" accept="image/*,application/pdf" class="hidden">
+            <div class="w-12 h-12 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 flex items-center justify-center group-hover:scale-110 transition">
+              <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="text-sm font-semibold text-white block">Click or Drag scanned template here</span>
+              <span class="text-xs text-slate-400">Supports PDF, PNG, JPEG, WEBP</span>
+            </div>
+          </div>
+
+          <!-- Calibration Controls Box -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
+                <i data-lucide="sliders" class="w-4 h-4 text-brand-400"></i>
+                Grid Calibration
+              </h3>
+              <button id="btn-reset-calibration" class="text-xs text-slate-400 hover:text-white underline">
+                Auto-Fit Grid
+              </button>
+            </div>
+
+            <!-- Position Offset X & Y -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-400 mb-1 block">X Offset</label>
+                <input id="calib-offset-x" type="range" min="0" max="600" value="80" class="w-full accent-brand-500">
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 mb-1 block">Y Offset</label>
+                <input id="calib-offset-y" type="range" min="0" max="600" value="160" class="w-full accent-brand-500">
+              </div>
+            </div>
+
+            <!-- Cell Dimensions Width & Height -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-400 mb-1 block">Cell Width</label>
+                <input id="calib-cell-w" type="range" min="20" max="200" value="110" class="w-full accent-brand-500">
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 mb-1 block">Cell Height</label>
+                <input id="calib-cell-h" type="range" min="20" max="200" value="110" class="w-full accent-brand-500">
+              </div>
+            </div>
+
+            <!-- Gap X & Gap Y -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-400 mb-1 block">Column Gap</label>
+                <input id="calib-gap-x" type="range" min="0" max="40" value="12" class="w-full accent-brand-500">
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 mb-1 block">Row Gap</label>
+                <input id="calib-gap-y" type="range" min="0" max="40" value="12" class="w-full accent-brand-500">
+              </div>
+            </div>
+
+            <!-- Rotation Angle -->
+            <div>
+              <div class="flex justify-between text-xs text-slate-400 mb-1">
+                <span>Rotation Alignment</span>
+                <span id="label-rotation-deg">0.0°</span>
+              </div>
+              <input id="calib-rotation" type="range" min="-10" max="10" step="0.1" value="0" class="w-full accent-brand-500">
+            </div>
+
+            <button id="btn-proceed-extraction" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-brand-500/20 transition flex items-center justify-center space-x-2">
+              <i data-lucide="scissors" class="w-4 h-4"></i>
+              <span>Extract & Crop Glyphs</span>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Scan Viewport -->
+        <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[500px]">
+          <div class="text-xs text-slate-400 mb-3 flex items-center gap-2 w-full justify-between px-2">
+            <span>Red boxes show where individual characters will be sliced.</span>
+            <span class="text-emerald-400 font-medium" id="scan-status-text">Ready for calibration</span>
+          </div>
+
+          <div class="relative max-w-full overflow-auto bg-slate-950 rounded-xl border border-slate-800 p-2 shadow-inner">
+            <canvas id="canvas-calibration-viewport" class="max-w-full h-auto block rounded"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- STEP 3 PANEL -->
+    <section id="step-3-panel" class="step-content hidden space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+          <h1 class="heading-font text-2xl font-bold text-white flex items-center gap-2">
+            Step 3: Process Image & Fine-Tune Glyphs
+          </h1>
+          <p class="text-slate-400 text-sm mt-1">
+            Tune global binarization contrast, stroke weight, and click any letter card to inspect or touch up pixels.
+          </p>
+        </div>
+
+        <button id="btn-proceed-step4" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center space-x-2">
+          <span>Build & Export Font</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Global Filter Controls -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <!-- Thresholding Slider -->
+        <div>
+          <div class="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+            <span>Binarization Threshold</span>
+            <span id="val-threshold" class="text-brand-400">140</span>
+          </div>
+          <input id="input-threshold" type="range" min="20" max="230" value="140" class="w-full accent-brand-500">
+          <span class="text-[10px] text-slate-500 block mt-1">Adjust stroke vs white background contrast</span>
+        </div>
+
+        <!-- Invert Filter -->
+        <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div>
+            <span class="text-xs font-semibold text-slate-200 block">Invert Image</span>
+            <span class="text-[10px] text-slate-400">White stroke on black scan</span>
+          </div>
+          <input id="toggle-invert" type="checkbox" class="w-4 h-4 accent-brand-500 rounded cursor-pointer">
+        </div>
+
+        <!-- Despeckle / Noise reduction -->
+        <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div>
+            <span class="text-xs font-semibold text-slate-200 block">Noise Despeckle</span>
+            <span class="text-[10px] text-slate-400">Clean stray dust pixels</span>
+          </div>
+          <input id="toggle-despeckle" type="checkbox" checked class="w-4 h-4 accent-brand-500 rounded cursor-pointer">
+        </div>
+
+        <!-- Stroke Boldness Adjust -->
+        <div>
+          <div class="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+            <span>Stroke Boldness</span>
+            <span id="val-boldness" class="text-brand-400">0</span>
+          </div>
+          <input id="input-boldness" type="range" min="-2" max="3" step="1" value="0" class="w-full accent-brand-500">
+          <span class="text-[10px] text-slate-500 block mt-1">Thicken or thin stroke contours</span>
+        </div>
+
+      </div>
+
+      <!-- Sliced Glyph Grid -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+            <i data-lucide="layers" class="w-4 h-4 text-brand-400"></i>
+            Extracted Character Cards (<span id="extracted-count">81</span> Glyphs)
+          </h2>
+          <span class="text-xs text-slate-500">Click any glyph box to open the editor modal.</span>
+        </div>
+
+        <div id="glyph-cards-grid" class="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-9 lg:grid-cols-12 gap-2.5 max-h-[550px] overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-slate-800">
+          <!-- Dynamically filled glyph cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4 PANEL -->
+    <section id="step-4-panel" class="step-content hidden space-y-6">
+      <div class="border-b border-slate-800 pb-4">
+        <h1 class="heading-font text-2xl font-bold text-white flex items-center gap-2">
+          Step 4: Generate Font & Sandbox Preview
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">
+          Export your real binary .TTF font file and test it live in the interactive typing sandbox.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Font Settings & Compile -->
+        <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-5">
+          <h2 class="font-semibold text-slate-200 text-sm border-b border-slate-800 pb-3 flex items-center gap-2">
+            <i data-lucide="type" class="w-4 h-4 text-brand-400"></i>
+            Font Metadata & Export
+          </h2>
+
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs font-medium text-slate-300 mb-1 block">Font Name</label>
+              <input id="input-font-name" type="text" value="My Hand Font" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+            </div>
+
+            <div>
+              <label class="text-xs font-medium text-slate-300 mb-1 block">Author / Creator</label>
+              <input id="input-font-author" type="text" value="Handwriting Studio" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium text-slate-300 mb-1 block">Ascender</label>
+                <input id="input-font-ascender" type="number" value="800" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-300 mb-1 block">Descender</label>
+                <input id="input-font-descender" type="number" value="-200" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+              </div>
+            </div>
+          </div>
+
+          <!-- Primary Download Button -->
+          <button id="btn-compile-download-ttf" class="w-full py-3.5 bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-xl shadow-brand-500/25 transition flex items-center justify-center space-x-2">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download .TTF Font File</span>
+          </button>
+
+          <div class="p-3 bg-brand-500/10 border border-brand-500/20 rounded-xl text-xs text-slate-300 space-y-1">
+            <div class="font-semibold text-brand-400 flex items-center gap-1.5">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+              <span>Ready for Desktop & Web</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Your generated .TTF file can be double-clicked to install on Windows, macOS, Linux, Microsoft Word, Photoshop, or Figma!</p>
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Sandbox Text Area -->
+        <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 flex flex-col">
+          
+          <!-- Sandbox Controls Header -->
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <h2 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+              <i data-lucide="play" class="w-4 h-4 text-emerald-400"></i>
+              Live Font Sandbox
+            </h2>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Font Size -->
+              <div class="flex items-center space-x-2">
+                <span class="text-xs text-slate-400">Size</span>
+                <input id="sandbox-size" type="range" min="18" max="100" value="48" class="w-24 accent-brand-500">
+                <span id="sandbox-size-val" class="text-xs text-slate-300 w-8">48px</span>
+              </div>
+
+              <!-- Quick Text Presets -->
+              <button id="btn-preset-pangram" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded border border-slate-700/60">
+                Pangram
+              </button>
+              <button id="btn-preset-alphabet" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded border border-slate-700/60">
+                A-Z
+              </button>
+            </div>
+          </div>
+
+          <!-- Typing Sandbox Area -->
+          <div class="flex-1 min-h-[320px] bg-slate-950 p-6 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <textarea id="sandbox-textarea" class="w-full h-full bg-transparent text-white focus:outline-none resize-none leading-relaxed transition-all duration-150" style="font-family: 'GeneratedCustomFont', sans-serif; font-size: 48px;" placeholder="Type here to test your custom handwriting font live..."></textarea>
+
+            <div class="pt-4 border-t border-slate-900 flex justify-between items-center text-xs text-slate-500">
+              <span>Rendering via dynamic OpenType @font-face string.</span>
+              <span id="sandbox-char-count">43 characters typed</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Single Glyph Fine-Tuning Editor -->
+  <div id="modal-glyph-editor" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-3">
+          <span id="modal-glyph-char" class="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-300 heading-font text-xl font-bold flex items-center justify-center">
+            A
+          </span>
+          <div>
+            <h3 class="font-bold text-white text-base">Glyph Fine-Tuning Editor</h3>
+            <span id="modal-glyph-info" class="text-xs text-slate-400">Character "A" (U+0041)</span>
+          </div>
+        </div>
+
+        <button id="btn-close-modal" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Canvas Canvas Tool -->
+      <div class="flex flex-col items-center space-y-3">
+        <div class="relative bg-slate-950 rounded-xl border-2 border-slate-800 overflow-hidden w-[260px] h-[260px]">
+          <canvas id="canvas-modal-editor" width="260" height="260" class="w-full h-full canvas-draw-cursor"></canvas>
+        </div>
+
+        <!-- Modal Draw Controls -->
+        <div class="flex items-center space-x-2">
+          <button id="modal-tool-draw" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white flex items-center space-x-1">
+            <i data-lucide="pen" class="w-3 h-3"></i>
+            <span>Draw</span>
+          </button>
+          <button id="modal-tool-erase" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white flex items-center space-x-1 border border-slate-700">
+            <i data-lucide="eraser" class="w-3 h-3"></i>
+            <span>Erase</span>
+          </button>
+          <button id="modal-btn-clear" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-red-400 hover:bg-red-500/20 flex items-center space-x-1 border border-slate-700">
+            <i data-lucide="trash-2" class="w-3 h-3"></i>
+            <span>Clear</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
+        <button id="modal-btn-cancel" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700">
+          Cancel
+        </button>
+        <button id="modal-btn-save" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-500/20">
+          Save Glyph Changes
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast Popup -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <script>
+    // -------------------------------------------------------------
+    // CONSTANTS & CHARACTER SET
+    // -------------------------------------------------------------
+    const CHARACTERS = [
+      'A','B','C','D','E','F','G','H','I',
+      'J','K','L','M','N','O','P','Q','R',
+      'S','T','U','V','W','X','Y','Z','a',
+      'b','c','d','e','f','g','h','i','j',
+      'k','l','m','n','o','p','q','r','s',
+      't','u','v','w','x','y','z','0','1',
+      '2','3','4','5','6','7','8','9','!',
+      '?','.',',','-','+','=',':',';','\'',
+      '"','@','#','$','%','&','*','(',')','/'
+    ];
+
+    // Global App State
+    const AppState = {
+      currentStep: 1,
+      selectedCharIndex: 0,
+      drawTool: 'pen', // 'pen' | 'eraser'
+      penSize: 8,
+      // Array of Canvas Elements storing 300x300 drawings for each character
+      charCanvases: new Array(81).fill(null),
+      
+      // Step 2 calibration state
+      scannedImage: null,
+      calib: {
+        offsetX: 80,
+        offsetY: 160,
+        cellW: 110,
+        cellH: 110,
+        gapX: 12,
+        gapY: 12,
+        rotation: 0
+      },
+
+      // Step 3 filter state
+      threshold: 140,
+      invert: false,
+      despeckle: true,
+      boldness: 0,
+      
+      // Extracted bitmap array (81 items)
+      extractedBitmaps: new Array(81).fill(null),
+      
+      // OpenType compiled font reference
+      compiledFont: null,
+      compiledFontBlobUrl: null
+    };
+
+    // -------------------------------------------------------------
+    // INITIALIZATION & LIFECYCLE
+    // -------------------------------------------------------------
+    window.onload = () => {
+      lucide.createIcons();
+      initCharCanvases();
+      renderMatrixGrid();
+      setupStep1DrawPad();
+      setupStep2Calibration();
+      setupStep3Filters();
+      setupStep4Sandbox();
+      setupModalEditor();
+      setupGlobalEvents();
+      renderPrintableTemplateCanvas();
+      
+      // Select initial character
+      selectCharacter(0);
+    };
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border text-xs font-semibold shadow-2xl flex items-center space-x-2 transition-all duration-300 transform translate-y-2 opacity-0 ${
+        type === 'success' 
+          ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200' 
+          : type === 'error'
+          ? 'bg-red-950 border-red-500/50 text-red-200'
+          : 'bg-slate-900 border-slate-700 text-slate-200'
+      }`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Initialize 81 offscreen canvases for digital drawing mode
+    function initCharCanvases() {
+      for (let i = 0; i < CHARACTERS.length; i++) {
+        const cvs = document.createElement('canvas');
+        cvs.width = 300;
+        cvs.height = 300;
+        const ctx = cvs.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 300, 300);
+        AppState.charCanvases[i] = cvs;
+      }
+    }
+
+    // -------------------------------------------------------------
+    // STEP 1: MATRIX GRID & DIGITAL DRAW PAD
+    // -------------------------------------------------------------
+    function renderMatrixGrid() {
+      const grid = document.getElementById('char-matrix-grid');
+      grid.innerHTML = '';
+
+      let filledCount = 0;
+
+      CHARACTERS.forEach((char, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.idx = idx;
+
+        // Check if canvas has strokes (non-white pixels)
+        const isDrawn = isCanvasDrawn(AppState.charCanvases[idx]);
+        if (isDrawn) filledCount++;
+
+        btn.className = `aspect-square rounded-lg border font-semibold text-xs flex flex-col items-center justify-center transition relative ${
+          idx === AppState.selectedCharIndex
+            ? 'border-brand-500 bg-brand-500/20 text-white ring-2 ring-brand-500/40'
+            : isDrawn
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+            : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80 hover:text-white'
+        }`;
+
+        btn.innerHTML = `
+          <span>${char}</span>
+          ${isDrawn ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute bottom-1"></span>' : ''}
+        `;
+
+        btn.onclick = () => selectCharacter(idx);
+        grid.appendChild(btn);
+      });
+
+      document.getElementById('drawn-count').textContent = filledCount;
+    }
+
+    function isCanvasDrawn(cvs) {
+      if (!cvs) return false;
+      const ctx = cvs.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] < 200 || data[i+1] < 200 || data[i+2] < 200) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function selectCharacter(idx) {
+      AppState.selectedCharIndex = idx;
+      const char = CHARACTERS[idx];
+
+      document.getElementById('current-char-label').textContent = char;
+      document.getElementById('current-char-display').textContent = char;
+      document.getElementById('draw-guide-watermark').textContent = char;
+      document.getElementById('current-char-unicode').textContent = `Unicode: U+${char.charCodeAt(0).toString(16).padStart(4, '0').toUpperCase()}`;
+
+      // Sync active character to draw pad
+      const drawPad = document.getElementById('canvas-draw-pad');
+      const ctx = drawPad.getContext('2d');
+      ctx.clearRect(0, 0, 300, 300);
+      ctx.drawImage(AppState.charCanvases[idx], 0, 0);
+
+      renderMatrixGrid();
+    }
+
+    function setupStep1DrawPad() {
+      const drawPad = document.getElementById('canvas-draw-pad');
+      const ctx = drawPad.getContext('2d');
+      let isDrawing = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      function getPos(e) {
+        const rect = drawPad.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - rect.left) * (drawPad.width / rect.width),
+          y: (clientY - rect.top) * (drawPad.height / rect.height)
+        };
+      }
+
+      function startDraw(e) {
+        e.preventDefault();
+        isDrawing = true;
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+      }
+
+      function moveDraw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+
+        ctx.lineWidth = AppState.penSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (AppState.drawTool === 'pen') {
+          ctx.strokeStyle = '#000000';
+          ctx.globalCompositeOperation = 'source-over';
+        } else {
+          ctx.strokeStyle = '#ffffff';
+          ctx.globalCompositeOperation = 'source-over';
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+
+        lastX = pos.x;
+        lastY = pos.y;
+
+        saveDrawPadToState();
+      }
+
+      function stopDraw() {
+        if (isDrawing) {
+          isDrawing = false;
+          saveDrawPadToState();
+          renderMatrixGrid();
+        }
+      }
+
+      drawPad.addEventListener('mousedown', startDraw);
+      drawPad.addEventListener('mousemove', moveDraw);
+      window.addEventListener('mouseup', stopDraw);
+
+      drawPad.addEventListener('touchstart', startDraw, { passive: false });
+      drawPad.addEventListener('touchmove', moveDraw, { passive: false });
+      drawPad.addEventListener('touchend', stopDraw);
+
+      // Tool buttons
+      document.getElementById('btn-tool-pen').onclick = () => {
+        AppState.drawTool = 'pen';
+        document.getElementById('btn-tool-pen').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white flex items-center space-x-1.5 shadow';
+        document.getElementById('btn-tool-eraser').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white flex items-center space-x-1.5 border border-slate-700/60';
+      };
+
+      document.getElementById('btn-tool-eraser').onclick = () => {
+        AppState.drawTool = 'eraser';
+        document.getElementById('btn-tool-eraser').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white flex items-center space-x-1.5 shadow';
+        document.getElementById('btn-tool-pen').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white flex items-center space-x-1.5 border border-slate-700/60';
+      };
+
+      document.getElementById('input-pen-size').oninput = (e) => {
+        AppState.penSize = parseInt(e.target.value);
+      };
+
+      document.getElementById('btn-draw-clear').onclick = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 300, 300);
+        saveDrawPadToState();
+        renderMatrixGrid();
+      };
+
+      document.getElementById('btn-draw-next').onclick = () => {
+        if (AppState.selectedCharIndex < CHARACTERS.length - 1) {
+          selectCharacter(AppState.selectedCharIndex + 1);
+        }
+      };
+
+      document.getElementById('btn-draw-prev').onclick = () => {
+        if (AppState.selectedCharIndex > 0) {
+          selectCharacter(AppState.selectedCharIndex - 1);
+        }
+      };
+
+      // Tab switcher
+      document.getElementById('tab-draw-mode').onclick = () => {
+        document.getElementById('view-draw-digital').classList.remove('hidden');
+        document.getElementById('view-template-sheet').classList.add('hidden');
+        document.getElementById('tab-draw-mode').className = 'px-4 py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white shadow-sm transition flex items-center gap-2';
+        document.getElementById('tab-template-mode').className = 'px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center gap-2';
+      };
+
+      document.getElementById('tab-template-mode').onclick = () => {
+        document.getElementById('view-draw-digital').classList.add('hidden');
+        document.getElementById('view-template-sheet').classList.remove('hidden');
+        document.getElementById('tab-template-mode').className = 'px-4 py-2 text-xs font-semibold rounded-lg bg-brand-600 text-white shadow-sm transition flex items-center gap-2';
+        document.getElementById('tab-draw-mode').className = 'px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center gap-2';
+      };
+
+      // Fill preset cursive
+      document.getElementById('btn-fill-sample-brush').onclick = fillSampleHandwriting;
+
+      document.getElementById('btn-draw-done-step').onclick = () => {
+        convertDrawingsToScannedImage();
+        switchStep(3);
+        showToast('Extracted digital drawing glyphs!', 'success');
+      };
+    }
+
+    function saveDrawPadToState() {
+      const drawPad = document.getElementById('canvas-draw-pad');
+      const idx = AppState.selectedCharIndex;
+      const targetCtx = AppState.charCanvases[idx].getContext('2d');
+      targetCtx.clearRect(0, 0, 300, 300);
+      targetCtx.drawImage(drawPad, 0, 0);
+    }
+
+    function fillSampleHandwriting() {
+      CHARACTERS.forEach((char, idx) => {
+        const cvs = AppState.charCanvases[idx];
+        const ctx = cvs.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 300, 300);
+
+        ctx.fillStyle = '#000000';
+        ctx.font = '600 180px "Caveat", cursive';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(char, 150, 150);
+      });
+
+      selectCharacter(AppState.selectedCharIndex);
+      renderMatrixGrid();
+      showToast('Autofilled sample handwriting preset!', 'success');
+    }
+
+    // Convert 81 digital canvases into a single scanned sheet image for calibration/extraction
+    function convertDrawingsToScannedImage() {
+      const sheet = document.createElement('canvas');
+      sheet.width = 1200;
+      sheet.height = 1500;
+      const ctx = sheet.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, sheet.width, sheet.height);
+
+      // Draw grid boxes and characters
+      const cols = 9;
+      const rows = 9;
+      const cellW = 110;
+      const cellH = 110;
+      const gapX = 12;
+      const gapY = 12;
+      const startX = 80;
+      const startY = 160;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          if (idx >= CHARACTERS.length) break;
+
+          const x = startX + c * (cellW + gapX);
+          const y = startY + r * (cellH + gapY);
+
+          // Draw char canvas inside cell
+          const srcCvs = AppState.charCanvases[idx];
+          ctx.drawImage(srcCvs, x, y, cellW, cellH);
+        }
+      }
+
+      AppState.scannedImage = sheet;
+    }
+
+    // Render Printable Template Sheet
+    function renderPrintableTemplateCanvas() {
+      const canvas = document.getElementById('canvas-printable-template');
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1200, 1500);
+
+      // Header
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 32px "Outfit", sans-serif';
+      ctx.fillText('GLYPHFORGE HANDWRITING FONT TEMPLATE', 80, 80);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '16px "Inter", sans-serif';
+      ctx.fillText('Fill each character box cleanly using a dark gel or felt-tip pen. Scan or photo sheet to import.', 80, 115);
+
+      // Draw Corner Fiducial Alignment Targets
+      drawCornerTarget(ctx, 40, 40);
+      drawCornerTarget(ctx, 1160, 40);
+      drawCornerTarget(ctx, 40, 1460);
+      drawCornerTarget(ctx, 1160, 1460);
+
+      // 9x9 Grid
+      const cols = 9;
+      const rows = 9;
+      const cellW = 110;
+      const cellH = 110;
+      const gapX = 12;
+      const gapY = 12;
+      const startX = 80;
+      const startY = 160;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          if (idx >= CHARACTERS.length) break;
+
+          const x = startX + c * (cellW + gapX);
+          const y = startY + r * (cellH + gapY);
+
+          // Box border
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x, y, cellW, cellH);
+
+          // Baseline guide
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x + 5, y + cellH * 0.75);
+          ctx.lineTo(x + cellW - 5, y + cellH * 0.75);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Character watermark label
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText(CHARACTERS[idx], x + 6, y + 16);
+        }
+      }
+
+      // Download PNG button
+      document.getElementById('btn-download-template-png').onclick = () => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'glyphforge-handwriting-template.png';
+        a.click();
+      };
+
+      // Print button
+      document.getElementById('btn-print-template').onclick = () => {
+        const win = window.open('', '_blank');
+        win.document.write(`
+          <html>
+            <head><title>Print Template</title></head>
+            <body style="margin:0;display:flex;justify-content:center;align-items:center;">
+              <img src="${canvas.toDataURL('image/png')}" style="width:100%;max-width:800px;"/>
+            </body>
+          </html>
+        `);
+        win.document.close();
+        setTimeout(() => win.print(), 500);
+      };
+    }
+
+    function drawCornerTarget(ctx, x, y) {
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 18, y);
+      ctx.lineTo(x + 18, y);
+      ctx.moveTo(x, y - 18);
+      ctx.lineTo(x, y + 18);
+      ctx.stroke();
+    }
+
+    // -------------------------------------------------------------
+    // STEP 2: SCAN UPLOAD & CALIBRATION ENGINE
+    // -------------------------------------------------------------
+    function setupStep2Calibration() {
+      const dropzone = document.getElementById('dropzone-area');
+      const fileInput = document.getElementById('input-file-upload');
+
+      dropzone.onclick = () => fileInput.click();
+
+      dropzone.ondragover = (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-brand-500', 'bg-brand-500/10');
+      };
+
+      dropzone.ondragleave = () => {
+        dropzone.classList.remove('border-brand-500', 'bg-brand-500/10');
+      };
+
+      dropzone.ondrop = (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-brand-500', 'bg-brand-500/10');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleUploadedFile(e.dataTransfer.files[0]);
+        }
+      };
+
+      fileInput.onchange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleUploadedFile(e.target.files[0]);
+        }
+      };
+
+      // Calibration Sliders
+      const syncCalib = () => {
+        AppState.calib.offsetX = parseInt(document.getElementById('calib-offset-x').value);
+        AppState.calib.offsetY = parseInt(document.getElementById('calib-offset-y').value);
+        AppState.calib.cellW = parseInt(document.getElementById('calib-cell-w').value);
+        AppState.calib.cellH = parseInt(document.getElementById('calib-cell-h').value);
+        AppState.calib.gapX = parseInt(document.getElementById('calib-gap-x').value);
+        AppState.calib.gapY = parseInt(document.getElementById('calib-gap-y').value);
+        AppState.calib.rotation = parseFloat(document.getElementById('calib-rotation').value);
+        document.getElementById('label-rotation-deg').textContent = `${AppState.calib.rotation.toFixed(1)}°`;
+
+        renderCalibrationViewport();
+      };
+
+      ['calib-offset-x','calib-offset-y','calib-cell-w','calib-cell-h','calib-gap-x','calib-gap-y','calib-rotation'].forEach(id => {
+        document.getElementById(id).oninput = syncCalib;
+      });
+
+      document.getElementById('btn-reset-calibration').onclick = () => {
+        document.getElementById('calib-offset-x').value = 80;
+        document.getElementById('calib-offset-y').value = 160;
+        document.getElementById('calib-cell-w').value = 110;
+        document.getElementById('calib-cell-h').value = 110;
+        document.getElementById('calib-gap-x').value = 12;
+        document.getElementById('calib-gap-y').value = 12;
+        document.getElementById('calib-rotation').value = 0;
+        syncCalib();
+      };
+
+      document.getElementById('btn-proceed-extraction').onclick = () => {
+        extractAllGlyphsFromScan();
+        switchStep(3);
+        showToast('Extracted all glyphs successfully!', 'success');
+      };
+    }
+
+    function handleUploadedFile(file) {
+      if (file.type === 'application/pdf') {
+        const fileReader = new FileReader();
+        fileReader.onload = function() {
+          const typedarray = new Uint8Array(this.result);
+          pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+            pdf.getPage(1).then(page => {
+              const viewport = page.getViewport({ scale: 2.0 });
+              const cvs = document.createElement('canvas');
+              cvs.width = viewport.width;
+              cvs.height = viewport.height;
+              const ctx = cvs.getContext('2d');
+              
+              page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
+                AppState.scannedImage = cvs;
+                renderCalibrationViewport();
+                showToast('Loaded PDF page scan!', 'success');
+              });
+            });
+          });
+        };
+        fileReader.readAsArrayBuffer(file);
+      } else {
+        const img = new Image();
+        img.onload = () => {
+          AppState.scannedImage = img;
+          renderCalibrationViewport();
+          showToast('Loaded scanned image!', 'success');
+        };
+        img.src = URL.createObjectURL(file);
+      }
+    }
+
+    function renderCalibrationViewport() {
+      if (!AppState.scannedImage) {
+        convertDrawingsToScannedImage();
+      }
+
+      const canvas = document.getElementById('canvas-calibration-viewport');
+      const ctx = canvas.getContext('2d');
+
+      const img = AppState.scannedImage;
+      canvas.width = img.width || 1200;
+      canvas.height = img.height || 1500;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Save rotation context
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((AppState.calib.rotation * Math.PI) / 180);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+      // Draw base scan image
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Overlay Red Grid Slices
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2;
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.1)';
+
+      const cols = 9;
+      const rows = 9;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          if (idx >= CHARACTERS.length) break;
+
+          const x = AppState.calib.offsetX + c * (AppState.calib.cellW + AppState.calib.gapX);
+          const y = AppState.calib.offsetY + r * (AppState.calib.cellH + AppState.calib.gapY);
+
+          ctx.fillRect(x, y, AppState.calib.cellW, AppState.calib.cellH);
+          ctx.strokeRect(x, y, AppState.calib.cellW, AppState.calib.cellH);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // -------------------------------------------------------------
+    // STEP 3: GLYPH EXTRACTION & IMAGE PROCESSING ENGINE
+    // -------------------------------------------------------------
+    function extractAllGlyphsFromScan() {
+      if (!AppState.scannedImage) {
+        convertDrawingsToScannedImage();
+      }
+
+      const srcImg = AppState.scannedImage;
+      const scanCvs = document.createElement('canvas');
+      scanCvs.width = srcImg.width || 1200;
+      scanCvs.height = srcImg.height || 1500;
+      const scanCtx = scanCvs.getContext('2d');
+
+      // Rotate if needed
+      scanCtx.translate(scanCvs.width / 2, scanCvs.height / 2);
+      scanCtx.rotate((AppState.calib.rotation * Math.PI) / 180);
+      scanCtx.translate(-scanCvs.width / 2, -scanCvs.height / 2);
+      scanCtx.drawImage(srcImg, 0, 0, scanCvs.width, scanCvs.height);
+
+      const cols = 9;
+      const rows = 9;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          if (idx >= CHARACTERS.length) break;
+
+          const x = AppState.calib.offsetX + c * (AppState.calib.cellW + AppState.calib.gapX);
+          const y = AppState.calib.offsetY + r * (AppState.calib.cellH + AppState.calib.gapY);
+
+          // Crop cell image
+          const cropCvs = document.createElement('canvas');
+          cropCvs.width = 128;
+          cropCvs.height = 128;
+          const cropCtx = cropCvs.getContext('2d');
+
+          cropCtx.fillStyle = '#ffffff';
+          cropCtx.fillRect(0, 0, 128, 128);
+          cropCtx.drawImage(
+            scanCvs,
+            x, y, AppState.calib.cellW, AppState.calib.cellH,
+            0, 0, 128, 128
+          );
+
+          AppState.extractedBitmaps[idx] = cropCvs;
+        }
+      }
+
+      renderStep3GlyphCards();
+    }
+
+    function setupStep3Filters() {
+      document.getElementById('input-threshold').oninput = (e) => {
+        AppState.threshold = parseInt(e.target.value);
+        document.getElementById('val-threshold').textContent = AppState.threshold;
+        renderStep3GlyphCards();
+      };
+
+      document.getElementById('toggle-invert').onchange = (e) => {
+        AppState.invert = e.target.checked;
+        renderStep3GlyphCards();
+      };
+
+      document.getElementById('toggle-despeckle').onchange = (e) => {
+        AppState.despeckle = e.target.checked;
+        renderStep3GlyphCards();
+      };
+
+      document.getElementById('input-boldness').oninput = (e) => {
+        AppState.boldness = parseInt(e.target.value);
+        document.getElementById('val-boldness').textContent = AppState.boldness;
+        renderStep3GlyphCards();
+      };
+
+      document.getElementById('btn-proceed-step4').onclick = () => {
+        compileOpenTypeFont();
+        switchStep(4);
+      };
+    }
+
+    function renderStep3GlyphCards() {
+      const container = document.getElementById('glyph-cards-grid');
+      container.innerHTML = '';
+
+      CHARACTERS.forEach((char, idx) => {
+        const cropCvs = AppState.extractedBitmaps[idx];
+        if (!cropCvs) return;
+
+        const binGrid = processBinarizedGrid(cropCvs);
+
+        // Render binary image onto preview canvas
+        const cardCvs = document.createElement('canvas');
+        cardCvs.width = 128;
+        cardCvs.height = 128;
+        const cardCtx = cardCvs.getContext('2d');
+
+        const imgData = cardCtx.createImageData(128, 128);
+        const data = imgData.data;
+
+        for (let i = 0; i < 128 * 128; i++) {
+          const v = binGrid[i] === 1 ? 0 : 255;
+          data[i * 4] = v;
+          data[i * 4 + 1] = v;
+          data[i * 4 + 2] = v;
+          data[i * 4 + 3] = 255;
+        }
+        cardCtx.putImageData(imgData, 0, 0);
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-900 border border-slate-800 hover:border-brand-500 rounded-xl p-2 flex flex-col items-center space-y-1 cursor-pointer transition group relative';
+        card.innerHTML = `
+          <div class="w-full aspect-square bg-white rounded border border-slate-700/50 overflow-hidden flex items-center justify-center">
+            <img src="${cardCvs.toDataURL()}" class="w-full h-full object-contain">
+          </div>
+          <span class="text-xs font-bold text-slate-300 group-hover:text-brand-400">${char}</span>
+        `;
+
+        card.onclick = () => openModalEditor(idx);
+        container.appendChild(card);
+      });
+
+      document.getElementById('extracted-count').textContent = CHARACTERS.length;
+    }
+
+    // Convert raw bitmap canvas into binary Uint8Array (1 = stroke pixel, 0 = white bg)
+    function processBinarizedGrid(cvs) {
+      const ctx = cvs.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, 128, 128);
+      const pixels = imgData.data;
+      const binGrid = new Uint8Array(128 * 128);
+
+      const thresh = AppState.threshold;
+      const inv = AppState.invert;
+
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        let isStroke = lum < thresh;
+        if (inv) isStroke = !isStroke;
+
+        binGrid[i / 4] = isStroke ? 1 : 0;
+      }
+
+      // Despeckle noise removal
+      if (AppState.despeckle) {
+        for (let y = 1; y < 127; y++) {
+          for (let x = 1; x < 127; x++) {
+            const idx = y * 128 + x;
+            if (binGrid[idx] === 1) {
+              const neighbors = 
+                binGrid[idx - 1] + binGrid[idx + 1] +
+                binGrid[idx - 128] + binGrid[idx + 128];
+              if (neighbors === 0) {
+                binGrid[idx] = 0; // Remove isolated dot
+              }
+            }
+          }
+        }
+      }
+
+      return binGrid;
+    }
+
+    // Vectorize Binarized Bitmap into OpenType Path
+    function vectorizeBitmapToPath(binaryGrid, width, height, options) {
+      const path = new opentype.Path();
+      const edges = [];
+
+      const getPixel = (x, y) => {
+        if (x < 0 || y < 0 || x >= width || y >= height) return 0;
+        return binaryGrid[y * width + x];
+      };
+
+      for (let y = 0; y <= height; y++) {
+        for (let x = 0; x <= width; x++) {
+          const top = getPixel(x, y - 1);
+          const left = getPixel(x - 1, y);
+          const curr = getPixel(x, y);
+
+          if (curr !== top) {
+            if (curr === 1) {
+              edges.push({ x1: x, y1: y, x2: x + 1, y2: y });
+            } else {
+              edges.push({ x1: x + 1, y1: y, x2: x, y2: y });
+            }
+          }
+
+          if (curr !== left) {
+            if (curr === 1) {
+              edges.push({ x1: x, y1: y + 1, x2: x, y2: y });
+            } else {
+              edges.push({ x1: x, y1: y, x2: x, y2: y + 1 });
+            }
+          }
+        }
+      }
+
+      if (edges.length === 0) return { path, advanceWidth: 500 };
+
+      const edgeMap = new Map();
+      for (const edge of edges) {
+        const key = `${edge.x1},${edge.y1}`;
+        if (!edgeMap.has(key)) edgeMap.set(key, []);
+        edgeMap.get(key).push(edge);
+      }
+
+      const visited = new Set();
+      const loops = [];
+
+      for (const edge of edges) {
+        const edgeKey = `${edge.x1},${edge.y1}->${edge.x2},${edge.y2}`;
+        if (visited.has(edgeKey)) continue;
+
+        const loop = [];
+        let curr = edge;
+
+        while (curr) {
+          const eKey = `${curr.x1},${curr.y1}->${curr.x2},${curr.y2}`;
+          if (visited.has(eKey)) break;
+          visited.add(eKey);
+
+          loop.push({ x: curr.x1, y: curr.y1 });
+
+          const nextKey = `${curr.x2},${curr.y2}`;
+          const candidates = edgeMap.get(nextKey);
+          curr = null;
+          if (candidates) {
+            for (const candidate of candidates) {
+              const cKey = `${candidate.x1},${candidate.y1}->${candidate.x2},${candidate.y2}`;
+              if (!visited.has(cKey)) {
+                curr = candidate;
+                break;
+              }
+            }
+          }
+        }
+
+        if (loop.length > 2) {
+          loops.push(loop);
+        }
+      }
+
+      const em = options.unitsPerEm || 1000;
+      const ascender = options.ascender || 800;
+      
+      let minX = width, maxX = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (binaryGrid[y * width + x] === 1) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+          }
+        }
+      }
+
+      const lBearing = 40;
+      const rBearing = 40;
+      const glyphWidthPx = Math.max(1, maxX - minX + 1);
+      const scale = (em * 0.75) / height;
+
+      const mapX = (px) => lBearing + (px - minX) * scale;
+      const mapY = (py) => ascender - 100 - (py * scale);
+
+      for (const loop of loops) {
+        if (loop.length < 3) continue;
+        path.moveTo(mapX(loop[0].x), mapY(loop[0].y));
+        for (let i = 1; i < loop.length; i++) {
+          path.lineTo(mapX(loop[i].x), mapY(loop[i].y));
+        }
+        path.close();
+      }
+
+      const advanceWidth = Math.round(lBearing + glyphWidthPx * scale + rBearing);
+      return { path, advanceWidth: Math.max(300, advanceWidth) };
+    }
+
+    // -------------------------------------------------------------
+    // STEP 4: OPENTYPE TTF COMPILER & LIVE SANDBOX
+    // -------------------------------------------------------------
+    function compileOpenTypeFont() {
+      try {
+        const fontName = document.getElementById('input-font-name').value || 'My Hand Font';
+        const ascender = parseInt(document.getElementById('input-font-ascender').value) || 800;
+        const descender = parseInt(document.getElementById('input-font-descender').value) || -200;
+
+        // Default .notdef glyph
+        const notdefPath = new opentype.Path();
+        notdefPath.moveTo(100, 0);
+        notdefPath.lineTo(100, 700);
+        notdefPath.lineTo(500, 700);
+        notdefPath.lineTo(500, 0);
+        notdefPath.close();
+
+        const notdefGlyph = new opentype.Glyph({
+          name: '.notdef',
+          unicode: 0,
+          advanceWidth: 600,
+          path: notdefPath
+        });
+
+        // Space glyph
+        const spaceGlyph = new opentype.Glyph({
+          name: 'space',
+          unicode: 32,
+          advanceWidth: 350,
+          path: new opentype.Path()
+        });
+
+        const fontGlyphs = [notdefGlyph, spaceGlyph];
+
+        CHARACTERS.forEach((char, idx) => {
+          const cropCvs = AppState.extractedBitmaps[idx];
+          if (!cropCvs) return;
+
+          const binGrid = processBinarizedGrid(cropCvs);
+          const { path, advanceWidth } = vectorizeBitmapToPath(binGrid, 128, 128, {
+            unitsPerEm: 1000,
+            ascender,
+            descender
+          });
+
+          const glyph = new opentype.Glyph({
+            name: char,
+            unicode: char.charCodeAt(0),
+            advanceWidth: advanceWidth,
+            path: path
+          });
+
+          fontGlyphs.push(glyph);
+        });
+
+        const font = new opentype.Font({
+          familyName: fontName,
+          styleName: 'Regular',
+          unitsPerEm: 1000,
+          ascender: ascender,
+          descender: descender,
+          glyphs: fontGlyphs
+        });
+
+        AppState.compiledFont = font;
+        const arrayBuffer = font.toArrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'font/ttf' });
+
+        if (AppState.compiledFontBlobUrl) {
+          URL.revokeObjectURL(AppState.compiledFontBlobUrl);
+        }
+        AppState.compiledFontBlobUrl = URL.createObjectURL(blob);
+
+        // Inject dynamic @font-face style
+        let fontStyle = document.getElementById('dynamic-font-style');
+        if (!fontStyle) {
+          fontStyle = document.createElement('style');
+          fontStyle.id = 'dynamic-font-style';
+          document.head.appendChild(fontStyle);
+        }
+        fontStyle.textContent = `
+          @font-face {
+            font-family: 'GeneratedCustomFont';
+            src: url('${AppState.compiledFontBlobUrl}') format('truetype');
+          }
+        `;
+
+        showToast('Compiled TTF Font successfully!', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Font compilation error: ' + err.message, 'error');
+      }
+    }
+
+    function setupStep4Sandbox() {
+      const textarea = document.getElementById('sandbox-textarea');
+      const sizeInput = document.getElementById('sandbox-size');
+      const sizeVal = document.getElementById('sandbox-size-val');
+
+      sizeInput.oninput = (e) => {
+        const val = e.target.value;
+        sizeVal.textContent = `${val}px`;
+        textarea.style.fontSize = `${val}px`;
+      };
+
+      textarea.oninput = () => {
+        document.getElementById('sandbox-char-count').textContent = `${textarea.value.length} characters typed`;
+      };
+
+      document.getElementById('btn-preset-pangram').onclick = () => {
+        textarea.value = 'The quick brown fox jumps over the lazy dog!';
+        textarea.dispatchEvent(new Event('input'));
+      };
+
+      document.getElementById('btn-preset-alphabet').onclick = () => {
+        textarea.value = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 !?.,-+=';
+        textarea.dispatchEvent(new Event('input'));
+      };
+
+      document.getElementById('btn-compile-download-ttf').onclick = () => {
+        if (!AppState.compiledFont) {
+          compileOpenTypeFont();
+        }
+        if (AppState.compiledFont) {
+          AppState.compiledFont.download();
+          showToast('Downloaded .TTF font file!', 'success');
+        }
+      };
+    }
+
+    // -------------------------------------------------------------
+    // MODAL GLYPH FINE-TUNING EDITOR
+    // -------------------------------------------------------------
+    let modalIdx = null;
+    let modalDrawTool = 'draw';
+
+    function setupModalEditor() {
+      const modal = document.getElementById('modal-glyph-editor');
+      const canvas = document.getElementById('canvas-modal-editor');
+      const ctx = canvas.getContext('2d');
+      let isDrawing = false;
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left) * (canvas.width / rect.width),
+          y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+      }
+
+      canvas.onmousedown = (e) => {
+        isDrawing = true;
+        draw(e);
+      };
+
+      canvas.onmousemove = (e) => {
+        if (isDrawing) draw(e);
+      };
+
+      window.onmouseup = () => isDrawing = false;
+
+      function draw(e) {
+        const pos = getPos(e);
+        ctx.fillStyle = modalDrawTool === 'draw' ? '#000000' : '#ffffff';
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      document.getElementById('modal-tool-draw').onclick = () => {
+        modalDrawTool = 'draw';
+        document.getElementById('modal-tool-draw').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white flex items-center space-x-1';
+        document.getElementById('modal-tool-erase').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white flex items-center space-x-1 border border-slate-700';
+      };
+
+      document.getElementById('modal-tool-erase').onclick = () => {
+        modalDrawTool = 'erase';
+        document.getElementById('modal-tool-erase').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white flex items-center space-x-1';
+        document.getElementById('modal-tool-draw').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white flex items-center space-x-1 border border-slate-700';
+      };
+
+      document.getElementById('modal-btn-clear').onclick = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 260, 260);
+      };
+
+      document.getElementById('btn-close-modal').onclick = closeModal;
+      document.getElementById('modal-btn-cancel').onclick = closeModal;
+
+      document.getElementById('modal-btn-save').onclick = () => {
+        if (modalIdx !== null) {
+          const targetCvs = AppState.extractedBitmaps[modalIdx];
+          const targetCtx = targetCvs.getContext('2d');
+          targetCtx.drawImage(canvas, 0, 0, 128, 128);
+          renderStep3GlyphCards();
+          closeModal();
+          showToast('Updated glyph artwork!', 'success');
+        }
+      };
+    }
+
+    function openModalEditor(idx) {
+      modalIdx = idx;
+      const char = CHARACTERS[idx];
+      document.getElementById('modal-glyph-char').textContent = char;
+      document.getElementById('modal-glyph-info').textContent = `Character "${char}" (U+${char.charCodeAt(0).toString(16).padStart(4, '0').toUpperCase()})`;
+
+      const canvas = document.getElementById('canvas-modal-editor');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 260, 260);
+
+      const srcCvs = AppState.extractedBitmaps[idx];
+      if (srcCvs) {
+        ctx.drawImage(srcCvs, 0, 0, 260, 260);
+      }
+
+      document.getElementById('modal-glyph-editor').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-glyph-editor').classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------
+    // NAVIGATION & STEP SWITCHER
+    // -------------------------------------------------------------
+    function switchStep(stepNum) {
+      AppState.currentStep = stepNum;
+
+      // Update Nav buttons
+      document.querySelectorAll('.step-nav-btn').forEach(btn => {
+        const s = parseInt(btn.dataset.step);
+        if (s === stepNum) {
+          btn.className = 'step-nav-btn flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2.5 p-2 rounded-lg border transition text-brand-400 border-brand-500/40 bg-brand-500/10';
+        } else {
+          btn.className = 'step-nav-btn flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-1 sm:space-y-0 sm:space-x-2.5 p-2 rounded-lg border transition text-slate-400 border-slate-800 bg-slate-900/40 hover:bg-slate-800/50';
+        }
+      });
+
+      // Show hide sections
+      document.querySelectorAll('.step-content').forEach(sec => sec.classList.add('hidden'));
+      document.getElementById(`step-${stepNum}-panel`).classList.remove('hidden');
+
+      if (stepNum === 2) {
+        renderCalibrationViewport();
+      } else if (stepNum === 3) {
+        if (!AppState.extractedBitmaps[0]) {
+          extractAllGlyphsFromScan();
+        }
+      } else if (stepNum === 4) {
+        compileOpenTypeFont();
+      }
+    }
+
+    function setupGlobalEvents() {
+      document.querySelectorAll('.step-nav-btn').forEach(btn => {
+        btn.onclick = () => switchStep(parseInt(btn.dataset.step));
+      });
+
+      // Quick demo preset button
+      document.getElementById('btn-load-demo').onclick = () => {
+        fillSampleHandwriting();
+        convertDrawingsToScannedImage();
+        switchStep(3);
+        showToast('Loaded handwriting demo sample!', 'success');
+      };
+
+      // Reset studio
+      document.getElementById('btn-reset-all').onclick = () => {
+        initCharCanvases();
+        renderMatrixGrid();
+        selectCharacter(0);
+        AppState.scannedImage = null;
+        switchStep(1);
+        showToast('Reset all character data.', 'info');
+      };
+    }
+  </script>
+</body>
+</html>
